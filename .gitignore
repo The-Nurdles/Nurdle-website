@@ -1,0 +1,18 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+env/
+
+# Uploads/results folders (optional)
+static/uploads/
+static/results/
+
+# Database file
+yolo.db
+
+# OS files
+.DS_Store
+Thumbs.db

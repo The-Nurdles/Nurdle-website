@@ -1,0 +1,10 @@
+Website for Nurdle detection
+
+1. open a terminal with .venv environemnt
+2. run the app with python app.python
+3. install ngrok from https://dashboard.ngrok.com/get-started/setup/windows
+3. open another terminal and run ngrok.exe
+4. in the ngrok terminal run ngrok http 5000
+5. it should give you a website in the forwarding : Forwarding   https://abcd1234.ngrok.io
+
+That is the webite you can access from the phone
