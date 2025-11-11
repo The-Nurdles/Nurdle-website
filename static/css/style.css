@@ -1,0 +1,131 @@
+body {
+  margin: 0;
+  padding: 0 0 60px 0; /* bottom padding for floating button */
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+h1 {
+  text-align: center;
+  font-size: 24px;
+  color: #333;
+}
+form {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+button {
+  width: 100%;
+  padding: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #218838;
+}
+#result {
+  margin-top: 20px;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+#info {
+  font-size: 16px;
+  color: #222;
+  margin-bottom: 10px;
+}
+#result-img {
+  max-width: 100%;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  display: none;
+}/* Floating plus button */
+#camera-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #28a745;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  color: white;
+  font-size: 36px;
+  line-height: 56px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  user-select: none;
+  z-index: 1000;
+  transition: background-color 0.3s ease;
+}
+#camera-button:hover {
+  background-color: #218838;
+}/* Camera overlay */
+#camera-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0,0,0,0.8);
+  z-index: 1500;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 10px;
+  box-sizing: border-box;
+}
+#camera-video {
+  border-radius: 12px;
+  max-width: 100%;
+  width: 320px;
+  height: auto;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  background-color: black;
+}
+#camera-controls {
+  margin-top: 15px;
+  display: flex;
+  gap: 15px;
+}
+#camera-controls button {
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+#capture-btn {
+  background-color: #28a745;
+  color: white;
+}
+#capture-btn:hover {
+  background-color: #218838;
+}
+#close-btn {
+  background-color: #dc3545;
+  color: white;
+}
+#close-btn:hover {
+  background-color: #b02a37;
+}

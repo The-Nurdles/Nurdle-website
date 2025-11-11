@@ -3,169 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>YOLOv8 Object Detector</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0 0 60px 0; /* bottom padding for floating button */
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f0f0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
+  <title>Nurdle Detection</title>
 
-    h1 {
-      text-align: center;
-      font-size: 24px;
-      color: #333;
-    }
-
-    form {
-      width: 100%;
-      max-width: 400px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
-
-    input[type="file"] {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-bottom: 15px;
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      font-size: 16px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #218838;
-    }
-
-    #result {
-      margin-top: 20px;
-      text-align: center;
-      max-width: 400px;
-      width: 100%;
-    }
-
-    #info {
-      font-size: 16px;
-      color: #222;
-      margin-bottom: 10px;
-    }
-
-    #result-img {
-      max-width: 100%;
-      border: 2px solid #ccc;
-      border-radius: 8px;
-      display: none;
-    }
-
-    /* Floating plus button */
-    #camera-button {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background-color: #28a745;
-      border-radius: 50%;
-      width: 56px;
-      height: 56px;
-      color: white;
-      font-size: 36px;
-      line-height: 56px;
-      text-align: center;
-      cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      user-select: none;
-      z-index: 1000;
-      transition: background-color 0.3s ease;
-    }
-    #camera-button:hover {
-      background-color: #218838;
-    }
-
-    /* Camera overlay */
-    #camera-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: rgba(0,0,0,0.8);
-      z-index: 1500;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-
-    #camera-video {
-      border-radius: 12px;
-      max-width: 100%;
-      width: 320px;
-      height: auto;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-      background-color: black;
-    }
-
-    #camera-controls {
-      margin-top: 15px;
-      display: flex;
-      gap: 15px;
-    }
-
-    #camera-controls button {
-      padding: 12px 20px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-    }
-
-    #capture-btn {
-      background-color: #28a745;
-      color: white;
-    }
-    #capture-btn:hover {
-      background-color: #218838;
-    }
-
-    #close-btn {
-      background-color: #dc3545;
-      color: white;
-    }
-    #close-btn:hover {
-      background-color: #b02a37;
-    }
-
-  </style>
+  <link rel="stylesheet" href="static/css/style.css">
 </head>
+
 <body>
 
-  <h1>Object Detection with YOLOv8</h1>
+  <h1>Nurdle Detection</h1>
 
+  <!-- Upload form -->
   <form id="upload-form" enctype="multipart/form-data">
-    <!-- This opens the camera on mobile -->
     <input type="file" name="image" id="image" accept="image/*" capture="environment" required />
     <button type="submit">Detect Objects</button>
   </form>
 
+  <!-- Results display -->
   <div id="result">
     <div id="info"></div>
     <img id="result-img" alt="Detection Result" />
@@ -183,113 +36,7 @@
     </div>
   </div>
 
- <script>
-  const form = document.getElementById('upload-form');
-  const resultImg = document.getElementById('result-img');
-  const info = document.getElementById('info');
-  const cameraButton = document.getElementById('camera-button');
-  const cameraOverlay = document.getElementById('camera-overlay');
-  const video = document.getElementById('camera-video');
-  const captureBtn = document.getElementById('capture-btn');
-  const closeBtn = document.getElementById('close-btn');
-
-  let stream = null;
-  let currentLat = null;
-  let currentLon = null;
-
-  // --- Request geolocation as soon as page loads ---
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        currentLat = pos.coords.latitude;
-        currentLon = pos.coords.longitude;
-        console.log("✅ Location acquired:", currentLat, currentLon);
-      },
-      (err) => {
-        console.warn("⚠️ Could not get location:", err.message);
-      }
-    );
-  } else {
-    console.warn("❌ Geolocation not supported in this browser.");
-  }
-
-  // --- Helper to send image to backend ---
-  async function sendImage(formData) {
-    // Attach geolocation if available
-    if (currentLat && currentLon) {
-      formData.append('latitude', currentLat);
-      formData.append('longitude', currentLon);
-    }
-
-    info.textContent = "Processing...";
-    resultImg.style.display = 'none';
-
-    const response = await fetch('/upload', { method: 'POST', body: formData });
-
-    if (response.ok) {
-      const data = await response.json();
-      const { image_data, total, nurdles, beads } = data;
-
-      resultImg.src = `data:image/jpeg;base64,${image_data}`;
-      resultImg.style.display = 'block';
-
-      info.innerHTML = `
-        <strong>Total detected:</strong> ${total}<br>
-        🟢 <strong>Nurdles:</strong> ${nurdles}<br>
-        🔵 <strong>Beads:</strong> ${beads}<br>
-      `;
-    } else {
-      info.textContent = "Failed to process the image.";
-    }
-  }
-
-  // --- Handle regular file uploads ---
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(form);
-    await sendImage(formData);
-  });
-
-  // --- Show camera overlay ---
-  cameraButton.addEventListener('click', async () => {
-    cameraOverlay.style.display = 'flex';
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      video.srcObject = stream;
-    } catch (err) {
-      alert('Error accessing camera: ' + err.message);
-      cameraOverlay.style.display = 'none';
-    }
-  });
-
-  // --- Close camera overlay ---
-  closeBtn.addEventListener('click', () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-    video.srcObject = null;
-    cameraOverlay.style.display = 'none';
-  });
-
-  // --- Capture and upload camera photo ---
-  captureBtn.addEventListener('click', async () => {
-    if (!stream) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob(async (blob) => {
-      const formData = new FormData();
-      formData.append('image', blob, 'capture.jpg');
-      await sendImage(formData);
-      closeBtn.click();
-    }, 'image/jpeg', 0.9);
-  });
-</script>
-
+  <script src="static\js\scripts.js"></script>
 
 </body>
 </html>

@@ -1,7 +1,5 @@
 flask
-torch
-torchvision
-pandas
 opencv-python
 pillow
 ultralytics
+numpy
