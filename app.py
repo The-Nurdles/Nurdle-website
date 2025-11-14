@@ -12,7 +12,6 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'static/uploads'
 RESULT_FOLDER = 'static/results'
 
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULT_FOLDER, exist_ok=True)
 
@@ -83,6 +82,34 @@ def upload():
     })
 
 # ---------------------------------------------------------
+# Map Page
+# ---------------------------------------------------------
+@app.route('/map')
+def map_page():
+    return render_template('map.html')
+
+@app.route('/api/locations')
+def api_locations():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT id, filename, latitude, longitude FROM processed_images')
+    rows = c.fetchall()
+    conn.close()
+
+    data = []
+    for row in rows:
+        _id, filename, lat, lon = row
+        if lat and lon:
+            data.append({
+                "id": _id,
+                "filename": filename,
+                "lat": lat,
+                "lon": lon
+            })
+
+    return jsonify(data)
+
+# ---------------------------------------------------------
 # Database viewer
 # ---------------------------------------------------------
 @app.route('/database')
@@ -90,115 +117,150 @@ def view_database():
     import base64
     import sqlite3
 
+    ITEMS_PER_PAGE = 10
+    page = request.args.get('page', 1, type=int)
+    offset = (page - 1) * ITEMS_PER_PAGE
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('SELECT id, filename, image, total_count, nurdles_count, beads_count, latitude, longitude, timestamp FROM processed_images')
+
+    # Count total rows
+    c.execute("SELECT COUNT(*) FROM processed_images")
+    total_rows = c.fetchone()[0]
+
+    # Fetch only 10 rows for this page
+    c.execute("""
+        SELECT id, filename, image, total_count, nurdles_count, beads_count,
+               latitude, longitude, timestamp
+        FROM processed_images
+        ORDER BY id DESC
+        LIMIT ? OFFSET ?
+    """, (ITEMS_PER_PAGE, offset))
     rows = c.fetchall()
     conn.close()
 
-    # Start building HTML
+    # Pagination info
+    total_pages = max((total_rows + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE, 1)
+    has_prev = page > 1
+    has_next = page < total_pages
+
+    prev_page = page - 1
+    next_page = page + 1
+
+    # Start HTML
     html = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Image Database</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <style>
-            .fade-in { animation: fadeIn 0.25s ease-in-out; }
-            @keyframes fadeIn { from {opacity:0; transform:scale(0.95);} to {opacity:1; transform:scale(1);} }
-            body.modal-open { overflow: hidden; backdrop-filter: blur(4px); }
-        </style>
-    </head>
-    <body class="bg-gray-100 text-gray-800">
-        <div class="max-w-7xl mx-auto px-6 py-8">
-            <h1 class="text-3xl font-bold mb-8 text-center text-green-700">Image Database</h1>
-            <div class="overflow-x-auto bg-white shadow-md rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-green-600 text-white">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">ID</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Image</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Total</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Nurdles</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Beads</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Timestamp</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Location</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-    """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Database</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.25s ease-in-out; }
+        @keyframes fadeIn { from {opacity:0; transform:scale(0.95);} to {opacity:1; transform:scale(1);} }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-center text-green-700">Image Database</h1>
 
-    # Add rows
+        <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-green-600 text-white">
+                    <tr>
+                        <th class="px-4 py-3">ID</th>
+                        <th class="px-4 py-3">Image</th>
+                        <th class="px-4 py-3">Total</th>
+                        <th class="px-4 py-3">Nurdles</th>
+                        <th class="px-4 py-3">Beads</th>
+                        <th class="px-4 py-3">Timestamp</th>
+                        <th class="px-4 py-3">Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+"""
+
+    # rows
     for row in rows:
-        _id, filename, img_blob, total, nurdle, bead, lat, lon, timestamp = row
-        if img_blob:
-            img_base64 = base64.b64encode(img_blob).decode('utf-8')
-            img_html = f'''
-                <img src="data:image/jpeg;base64,{img_base64}" alt="{filename}" class="w-32 h-32 object-cover rounded-md shadow-sm mx-auto cursor-pointer hover:scale-105 transition" onclick="openModal('data:image/jpeg;base64,{img_base64}')">
-            '''
-        else:
-            img_html = '<div class="w-32 h-32 bg-gray-300 flex items-center justify-center rounded-md">No Image</div>'
+        _id, filename, img_blob, total, nurdles, beads, lat, lon, timestamp = row
 
-        filename_html = f'<div class="text-xs text-gray-600 mt-1 text-center">{filename}</div>'
-        if lat and lon:
-            location_html = f'<a href="https://www.google.com/maps?q={lat},{lon}" target="_blank" class="text-green-600 hover:underline">🌍 {lat:.5f}, {lon:.5f}</a>'
+        if img_blob:
+            img_b64 = base64.b64encode(img_blob).decode("utf-8")
+            img_html = f"<img src='data:image/jpeg;base64,{img_b64}' class='w-32 h-32 object-cover rounded-md cursor-pointer hover:scale-105 transition' onclick=\"openModal('data:image/jpeg;base64,{img_b64}')\">"
         else:
-            location_html = '<span class="text-gray-400">N/A</span>'
+            img_html = "<div class='w-32 h-32 bg-gray-300 rounded-md'></div>"
+
+        filename_html = f"<div class='text-xs text-gray-600 text-center'>{filename}</div>"
+
+        if lat and lon:
+            loc_html = f"<a href='https://www.google.com/maps?q={lat},{lon}' target='_blank' class='text-green-700'>📍 {lat:.5f}, {lon:.5f}</a>"
+        else:
+            loc_html = "<span class='text-gray-400'>N/A</span>"
 
         html += f"""
-            <tr class="hover:bg-gray-50 transition">
-                <td class="px-4 py-3 text-sm">{_id}</td>
-                <td class="px-4 py-3 text-center">{img_html}{filename_html}</td>
-                <td class="px-4 py-3 text-sm font-semibold text-gray-900">{total}</td>
-                <td class="px-4 py-3 text-sm text-green-700">{nurdle}</td>
-                <td class="px-4 py-3 text-sm text-blue-700">{bead}</td>
-                <td class="px-4 py-3 text-sm text-gray-600">{timestamp}</td>
-                <td class="px-4 py-3 text-sm">{location_html}</td>
-            </tr>
-        """
+<tr class='hover:bg-gray-50'>
+    <td class='px-4 py-3'>{_id}</td>
+    <td class='px-4 py-3 text-center'>{img_html}{filename_html}</td>
+    <td class='px-4 py-3 font-semibold'>{total}</td>
+    <td class='px-4 py-3 text-green-700'>{nurdles}</td>
+    <td class='px-4 py-3 text-blue-700'>{beads}</td>
+    <td class='px-4 py-3 text-gray-600'>{timestamp}</td>
+    <td class='px-4 py-3'>{loc_html}</td>
+</tr>
+"""
 
-    # Close HTML
-    html += """
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-8 text-center">
-                <a href="/" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">← Back to Upload</a>
-            </div>
+    # Pagination footer
+    html += f"""
+                </tbody>
+            </table>
         </div>
 
-        <!-- Image Zoom Modal -->
-        <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-70 hidden z-50 flex items-center justify-center backdrop-blur-sm">
-            <div class="relative fade-in flex justify-center items-center">
-                <img id="modalImg" src="" class="rounded-lg shadow-2xl w-auto max-w-[90vw] max-h-[85vh] object-contain">
-                <button onclick="closeModal()" class="absolute top-2 right-2 bg-white bg-opacity-90 text-gray-800 rounded-full px-3 py-1 text-xl font-bold hover:bg-gray-200 hover:scale-105 transition">&times;</button>
-            </div>
-        </div>
-
-        <script>
-        function openModal(imgSrc) {
-            const modal = document.getElementById('imageModal');
-            const modalImg = document.getElementById('modalImg');
-            modalImg.src = imgSrc;
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        }
-        function closeModal() {
-            const modal = document.getElementById('imageModal');
-            modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        }
-        document.getElementById('imageModal').addEventListener('click', (e) => {
-            if (e.target.id === 'imageModal') { closeModal(); }
-        });
-        </script>
-    </body>
-    </html>
+        <div class="flex justify-center items-center mt-6 space-x-4">
     """
 
+    if has_prev:
+        html += f"<a href='?page={prev_page}' class='px-4 py-2 bg-green-600 text-white rounded-lg'>← Previous</a>"
+
+    html += f"<span class='font-semibold text-gray-700'>Page {page} of {total_pages}</span>"
+
+    if has_next:
+        html += f"<a href='?page={next_page}' class='px-4 py-2 bg-green-600 text-white rounded-lg'>Next →</a>"
+
+    html += """
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="/" class="px-4 py-2 bg-green-600 text-white rounded-lg">← Back to Upload</a>
+        </div>
+    </div>
+
+    <!-- modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center">
+        <div class="relative">
+            <img id="modalImg" class="max-w-[90vw] max-h-[85vh] rounded-lg shadow-xl">
+            <button onclick="closeModal()" class="absolute top-2 right-2 bg-white px-3 py-1 rounded-full text-xl">&times;</button>
+        </div>
+    </div>
+
+    <script>
+    function openModal(src) {
+        const m = document.getElementById('imageModal');
+        document.getElementById('modalImg').src = src;
+        m.classList.remove('hidden');
+    }
+    function closeModal() {
+        document.getElementById('imageModal').classList.add('hidden');
+    }
+    </script>
+
+</body>
+</html>
+"""
+
     return html
+
+
 # ---------------------------------------------------------
 # Run app
 # ---------------------------------------------------------
