@@ -1,10 +1,17 @@
 Website for Nurdle detection
 
+How to run:
+
+1. (Optional) Create a virtual environment
+2. Install the dependencies from requirements.txt by running "pip install -r requirements.txt" in a terminal
+3. Then run the website by using this command also in the terminal "python app.py"
+4. Access the website from the web by using the URL provided by the command above OR from localhost:5000.
+
+How to run for phone usage:
+
 1. open a terminal with .venv environemnt
 2. run the app with python app.python
 3. install ngrok from https://dashboard.ngrok.com/get-started/setup/windows
 3. open another terminal and run ngrok.exe
 4. in the ngrok terminal run ngrok http 5000
 5. it should give you a website that will look like this: Forwarding   https://abcd1234.ngrok.io
-
-That is the webite you can access from the phone
